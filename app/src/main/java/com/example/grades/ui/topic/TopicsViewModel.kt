@@ -1,41 +1,44 @@
-package com.example.grades.ui.topic
+// viewmodel/TopicViewModel.kt
+package com.example.grades.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.example.grades.model.DataSource
+import androidx.lifecycle.viewModelScope
 import com.example.grades.model.Topic
+import com.example.grades.model.TopicRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
-/**
- * Represents the UI state for the topics screen.
- */
-data class TopicsUiState(
-    val topics: List<Topic> = emptyList()
-)
+// O ViewModel herda de androidx.lifecycle.ViewModel
+class TopicViewModel : ViewModel() {
 
-/**
- * ViewModel for the topics screen.
- */
-class TopicsViewModel : ViewModel() {
+    private val repository = TopicRepository()
 
-    // Private mutable state flow
-    private val _uiState = MutableStateFlow(TopicsUiState())
-    // Public immutable state flow
-    val uiState: StateFlow<TopicsUiState> = _uiState.asStateFlow()
+    // 1. STATEFLOW PRIVADO E MUTÁVEL:
+    //    Armazena o estado atual da lista de tópicos. Só pode ser modificado DENTRO do ViewModel.
+    private val _topics = MutableStateFlow<List<Topic>>(emptyList())
 
+    // 2. STATEFLOW PÚBLICO E IMUTÁVEL (READ-ONLY):
+    //    A UI (View) irá observar este StateFlow para receber atualizações de forma reativa.
+    //    Ele é uma versão pública e somente leitura do _topics.
+    val topics: StateFlow<List<Topic>> = _topics.asStateFlow()
+
+    // O bloco init é chamado quando o ViewModel é criado pela primeira vez.
     init {
-        // Load topics when the ViewModel is created
         loadTopics()
     }
 
+    // 3. FUNÇÃO PARA CARREGAR OS DADOS:
+    //    Usa Coroutines (viewModelScope) para buscar os dados em uma thread de fundo. [1]
     private fun loadTopics() {
-        // Get data from the Model (DataSource)
-        val topics = DataSource.topics
-        // Update the UI state
-        _uiState.update {
-            it.copy(topics = topics)
+        // viewModelScope é um CoroutineScope ligado ao ciclo de vida do ViewModel.
+        // A corrotina será cancelada automaticamente se o ViewModel for destruído.
+        viewModelScope.launch {
+            // Obtém os dados do repositório
+            val topicList = repository.getTopics()
+            // Atualiza o valor do StateFlow, o que notificará a UI automaticamente.
+            _topics.value = topicList
         }
     }
 }
